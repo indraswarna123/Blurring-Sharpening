@@ -1,0 +1,97 @@
+const fs = require("fs");
+
+function getByteArray(filePath) {
+  let fileData = fs.readFileSync(filePath).toString("hex");
+  let result = [];
+  for (var i = 0; i < fileData.length; i += 2)
+    result.push("0x" + fileData[i] + "" + fileData[i + 1]);
+  return result;
+}
+
+result = getByteArray("moon.pgm");
+var header = ["P2", "466 540", "255"];
+onlyImage = [];
+
+for (var i = 0; i < result.length; i++) {
+  if (i > 14) {
+    let string = result[i];
+    let parsedInt = parseInt(string);
+    onlyImage.push(parsedInt);
+  }
+}
+
+var parsedImage = [];
+var blurredMedianHolder = [];
+tempPixel = 0;
+
+for (i = 0; i < 540; i++) {
+  for (j = 0; j < 466; j++) {
+    if (!parsedImage[i]) {
+      parsedImage[i] = [];
+      blurredMedianHolder[i] = [];
+    }
+    parsedImage[i][j] = onlyImage[tempPixel];
+    blurredMedianHolder[i][j] = 0;
+    tempPixel++;
+  }
+}
+
+let minVal = 0;
+let maxVal = 0;
+for (i = 1; i < 540 - 1; i++) {
+  for (j = 1; j < 466 - 1; j++) {
+    tempMedian = 0;
+    tempWidth = i;
+    tempHeight = j;
+
+    tempMedian =
+      parsedImage[i - 1][j - 1] +
+      parsedImage[i - 1][j] +
+      parsedImage[i - 1][j + 1] +
+      parsedImage[i][j - 1] -
+      8 * parsedImage[i][j] +
+      parsedImage[i][j + 1] +
+      parsedImage[i + 1][j - 1] +
+      parsedImage[i + 1][j] +
+      parsedImage[i + 1][j + 1];
+
+    blurredMedianHolder[i][j] = parsedImage[i][j] - tempMedian;
+
+    if (blurredMedianHolder[i][j] > maxVal) {
+      maxVal = blurredMedianHolder[i][j];
+    }
+    if (minVal > blurredMedianHolder[i][j]) {
+      minVal = blurredMedianHolder[i][j];
+    }
+    if (blurredMedianHolder[i][j] < 0) {
+      blurredMedianHolder[i][j] = 0;
+    }
+  }
+}
+
+console.log("Max : " + maxVal + " Min : " + minVal);
+
+for (i = 0; i < 540; i++) {
+  for (j = 0; j < 466; j++) {
+    //Filter to sharpen the 0 value
+    // blurredMedianHolder[i][j] =
+    //   ((blurredMedianHolder[i][j] - minVal) / (maxVal - minVal)) * 255;
+    // console.log(blurredMedianHolder[i][j]);
+
+    if (blurredMedianHolder[i][j] > 255) {
+      parsedImage[i][j] = 255;
+    } else {
+      if (parsedImage[i][j] != Math.round(blurredMedianHolder[i][j]))
+        parsedImage[i][j] = Math.round(blurredMedianHolder[i][j]);
+    }
+    header.push(parsedImage[i][j]);
+  }
+}
+
+let finalResult = header
+  .toString()
+  .split(",")
+  .join("\n");
+fs.writeFile("sharpenedImage.pgm", finalResult, err => {
+  if (err) throw err;
+});

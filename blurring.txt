@@ -1,0 +1,110 @@
+const fs = require("fs");
+
+function getByteArray(filePath) {
+  let fileData = fs.readFileSync(filePath).toString("hex");
+  let result = [];
+  for (var i = 0; i < fileData.length; i += 2)
+    result.push("0x" + fileData[i] + "" + fileData[i + 1]);
+  return result;
+}
+
+result = getByteArray("test_pattern_blurring.pgm");
+var header = ["P2", "500 500", "255"];
+var RGB = 256;
+var occurence = {};
+onlyImage = [];
+
+for (var i = 0; i < result.length; i++) {
+  if (i > 14) {
+    let string = result[i];
+    let parsedInt = parseInt(string);
+    onlyImage.push(parsedInt);
+  }
+}
+
+var parsedImage = [];
+var blurredMedianHolder = [];
+tempPixel = 0;
+for (i = 0; i < 500; i++) {
+  for (j = 0; j < 500; j++) {
+    if (!parsedImage[i]) {
+      parsedImage[i] = [];
+      blurredMedianHolder[i] = [];
+    }
+    parsedImage[i][j] = onlyImage[tempPixel];
+    blurredMedianHolder[i][j] = 0;
+    tempPixel++;
+  }
+}
+
+for (i = 0; i < 500; i++) {
+  for (j = 0; j < 500; j++) {
+    tempMedian = 0;
+    tempIsFalse = true;
+    tempWidth = i;
+    tempHeight = j;
+    for (k = 0; k < 3; k++) {
+      for (l = 0; l < 3; l++) {
+        if (l == 0) {
+          if (typeof parsedImage[tempWidth - 1] !== "undefined") {
+            if (
+              typeof parsedImage[tempWidth - 1][tempHeight - 1] !== "undefined"
+            ) {
+              tempMedian += parsedImage[tempWidth - 1][tempHeight - 1];
+            }
+          } else {
+            tempIsFalse = false;
+          }
+        } else if (l == 1) {
+          if (typeof parsedImage[tempWidth] !== "undefined") {
+            if (typeof parsedImage[tempWidth][tempHeight] !== "undefined") {
+              tempMedian += parsedImage[tempWidth][tempHeight];
+            }
+          } else {
+            tempIsFalse = false;
+          }
+        } else {
+          if (typeof parsedImage[tempWidth + 1] !== "undefined") {
+            if (
+              typeof parsedImage[tempWidth + 1][tempHeight + 1] !== "undefined"
+            ) {
+              tempMedian += parsedImage[tempWidth + 1][tempHeight + 1];
+            }
+          } else {
+            tempIsFalse = false;
+          }
+        }
+      }
+    }
+
+    if (tempIsFalse) {
+      tempMedian = tempMedian / 9;
+      //     console.log(tempIsFalse);
+      //   console.log(tempMedian);
+      blurredMedianHolder[i][j] = Math.round(tempMedian);
+      //   console.log(tempMedian);
+    }
+  }
+}
+
+for (i = 0; i < 500; i++) {
+  for (j = 0; j < 500; j++) {
+    if (parsedImage[i][j] != blurredMedianHolder[i][j]) {
+      //   console.log(
+      //     "Old: " + parsedImage[i][j] + " New: " + blurredMedianHolder[i][j]
+      //   );
+      if (blurredMedianHolder[i][j] > 0) {
+        parsedImage[i][j] = blurredMedianHolder[i][j];
+      }
+    }
+    header.push(parsedImage[i][j]);
+  }
+}
+
+let finalResult = header
+  .toString()
+  .split(",")
+  .join("\n");
+fs.writeFile("blurredImage.pgm", finalResult, err => {
+  if (err) throw err;
+});
